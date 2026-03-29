@@ -31,7 +31,7 @@ function render(time) {
   ctx.stroke();
 
   // Animation: Move from left to right in a 1-second (1000ms) interval
-  const cycle = (time % 1000) / 1000; 
+  const cycle = Math.sin(time / 1000); 
   const xOffset = (cycle * 100) - 50; // Oscillate/Move text slightly
 
   ctx.font = FONT;
