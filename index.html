@@ -3,14 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pretext Circle Wrap</title>
+  <title>Pretext DOM Wrap</title>
   <style>
-    body { margin: 0; background: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-    canvas { background: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    body { 
+      margin: 0; 
+      background: white; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      font-family: sans-serif;
+    }
+    #app {
+      position: relative;
+      width: 600px;
+      height: 600px;
+      background: white;
+      user-select: text; /* Ensures text is selectable */
+    }
+    #circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 240px; /* Radius * 2 */
+      height: 240px;
+      margin-left: -120px;
+      margin-top: -120px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 50%;
+      z-index: 1;
+      pointer-events: none; /* Allows selecting text "under" the circle edges */
+    }
+    .line {
+      position: absolute;
+      white-space: nowrap;
+      height: 24px;
+      font-size: 20px;
+      line-height: 24px;
+      color: #333;
+    }
   </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
+  <div id="app">
+    <div id="circle"></div>
+    <div id="text-container"></div>
+  </div>
   <script type="module" src="/main.js"></script>
 </body>
 </html>

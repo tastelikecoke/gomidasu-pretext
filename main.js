@@ -1,89 +1,87 @@
 import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
 
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-
-canvas.width = 600;
-canvas.height = 600;
-
-const text = "Pretext is a pure JavaScript library for multiline text measurement and layout. It is fast, accurate, and avoids DOM reflows. Here we are demonstrating how to wrap text around a circular obstacle in the center of the screen. As the text moves from left to right every second, Pretext recalculates the line breaks dynamically to flow around the circle. This approach is much more performant than traditional DOM-based methods because it uses pure arithmetic for the layout logic. Notice how the text segments split and adjust to maintain the circular shape in the middle. ";
-const repeatText = text.repeat(5); // Make enough text to fill the area
-
+const container = document.getElementById('text-container');
+const WIDTH = 600;
+const HEIGHT = 600;
 const FONT = '20px sans-serif';
 const LINE_HEIGHT = 24;
 const CIRCLE_RADIUS = 120;
-const CENTER_X = canvas.width / 2;
-const CENTER_Y = canvas.height / 2;
+const CENTER_X = WIDTH / 2;
+const CENTER_Y = HEIGHT / 2;
 
-// Prepare the text once (expensive pass)
-const prepared = prepareWithSegments(repeatText, FONT);
+const text = "Pretext allows us to calculate text layouts without the DOM, but we can still use those calculations to drive DOM elements. By using layoutNextLine, we can determine exactly where a string should break to avoid the central circle. This text remains fully selectable because it consists of standard span elements. Notice how the text shifts and reflows every second as it moves from left to right. This demonstrates the power of manual layout control in high-performance web interfaces. ".repeat(4);
+
+const prepared = prepareWithSegments(text, FONT);
 
 function render(time) {
-  // Clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Draw the central circle (obstacle)
-  ctx.beginPath();
-  ctx.arc(CENTER_X, CENTER_Y, CIRCLE_RADIUS, 0, Math.PI * 2);
-  ctx.fillStyle = '#eee';
-  ctx.fill();
-  ctx.strokeStyle = '#ccc';
-  ctx.stroke();
+  // Movement logic: 0 to 100px every 1000ms
+  const cycle = Math.sin(time / 1000);
+  const xOffset = cycle * 100;
 
-  // Animation: Move from left to right in a 1-second (1000ms) interval
-  const cycle = Math.sin(time / 1000); 
-  const xOffset = (cycle * 100) - 50; // Oscillate/Move text slightly
-
-  ctx.font = FONT;
-  ctx.fillStyle = '#333';
-  ctx.textBaseline = 'top';
+  // Clear the container for the new frame
+  container.innerHTML = '';
 
   let cursor = { segmentIndex: 0, graphemeIndex: 0 };
   let y = 20;
 
-  // Layout lines one by one
-  while (y < canvas.height - 20) {
-    const relativeY = y + LINE_HEIGHT / 2 - CENTER_Y;
-    let lineX = 20 + xOffset;
-    let availableWidth = canvas.width - 40;
+  while (y < HEIGHT - 20) {
+    const relativeY = (y + LINE_HEIGHT / 2) - CENTER_Y;
+    const lineDiv = document.createElement('div');
+    lineDiv.className = 'line';
+    lineDiv.style.top = `${y}px`;
 
-    // Calculate intersection with the circle
+    // Determine if this line hits the circle
     if (Math.abs(relativeY) < CIRCLE_RADIUS) {
       const halfChord = Math.sqrt(CIRCLE_RADIUS ** 2 - relativeY ** 2);
       const circleLeft = CENTER_X - halfChord;
       const circleRight = CENTER_X + halfChord;
 
-      // Layout part 1: Text to the left of the circle
-      const leftWidth = circleLeft - lineX - 10; // 10px padding
+      // Part 1: Text before the circle
+      const leftStart = 20 + (xOffset % 50); // Small movement
+      const leftWidth = circleLeft - leftStart - 10;
+      
       if (leftWidth > 20) {
         const line = layoutNextLine(prepared, cursor, leftWidth);
         if (line) {
-          ctx.fillText(line.text, lineX, y);
+          const span = document.createElement('span');
+          span.textContent = line.text;
+          span.style.position = 'absolute';
+          span.style.left = `${leftStart}px`;
+          lineDiv.appendChild(span);
           cursor = line.end;
         }
       }
 
-      // Layout part 2: Text to the right of the circle
-      // We skip the circle area and continue from the same cursor
-      const rightWidth = (canvas.width - 20) - (circleRight + 10);
+      // Part 2: Text after the circle
+      const rightWidth = (WIDTH - 20) - (circleRight + 10);
       if (rightWidth > 20) {
         const line = layoutNextLine(prepared, cursor, rightWidth);
         if (line) {
-          ctx.fillText(line.text, circleRight + 10, y);
+          const span = document.createElement('span');
+          span.textContent = line.text;
+          span.style.position = 'absolute';
+          span.style.left = `${circleRight + 10}px`;
+          lineDiv.appendChild(span);
           cursor = line.end;
         }
       }
     } else {
-      // Normal line (no circle intersection)
-      const line = layoutNextLine(prepared, cursor, availableWidth);
+      // Normal full-width line
+      const fullWidth = WIDTH - 40;
+      const line = layoutNextLine(prepared, cursor, fullWidth);
       if (line) {
-        ctx.fillText(line.text, lineX, y);
+        const span = document.createElement('span');
+        span.textContent = line.text;
+        span.style.position = 'absolute';
+        span.style.left = `${20 + (xOffset % 50)}px`;
+        lineDiv.appendChild(span);
         cursor = line.end;
       }
     }
 
+    container.appendChild(lineDiv);
     y += LINE_HEIGHT;
-    if (cursor === null) break;
+    if (!cursor) break;
   }
 
   requestAnimationFrame(render);
