@@ -1,10 +1,10 @@
 import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
 
+console.log(WIDTH);
 const container = document.getElementById('text-container');
-const WIDTH = 600;
-const HEIGHT = 600;
 const FONT = '20px sans-serif';
-const LINE_HEIGHT = 24;
+var HEIGHT = 600;
+var WIDTH = 600;
 const CIRCLE_RADIUS = 120;
 const CENTER_X = WIDTH / 2;
 const CENTER_Y = HEIGHT / 2;
@@ -14,8 +14,14 @@ const text = "Pretext allows us to calculate text layouts without the DOM, but w
 const prepared = prepareWithSegments(text, FONT);
 
 function render(time) {
+  const app = document.getElementById('app');
+  var HEIGHT = app.clientHeight;
+  var WIDTH = container.clientWidth;
+  const CENTER_X = WIDTH / 2;
+  const CENTER_Y = HEIGHT / 3;
+  const LINE_HEIGHT = 24;
   // Movement logic: 0 to 100px every 1000ms
-  const cycle = Math.sin(time / 1000);
+  const cycle = 0;// Math.sin(time / 1000);
   const xOffset = cycle * 100;
 
   // Clear the container for the new frame
@@ -84,7 +90,8 @@ function render(time) {
     if (!cursor) break;
   }
 
-  requestAnimationFrame(render);
+  //requestAnimationFrame(render);
 }
 
 requestAnimationFrame(render);
+window.addEventListener('resize', () => {requestAnimationFrame(render)});
