@@ -7,6 +7,7 @@ var WIDTH = 600;
 const CIRCLE_RADIUS = 130;
 const CENTER_X = WIDTH / 2;
 const CENTER_Y = HEIGHT / 2;
+const LINE_HEIGHT = 72;
 const ball = document.getElementById('circle');
 var isAnimating = true;
 
@@ -16,6 +17,32 @@ const isekai = "ヰ世界情緒。自らの歌と創作で世界を表現する�
 
 const streetwitch = "Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch Street Witch ";
 const prepared = prepareWithSegments(isekai, FONT);
+
+// --- Object Pooling Setup ---
+const lineElements = [];
+const maxLines = Math.ceil(HEIGHT*2 / LINE_HEIGHT) + 2;
+
+// Pre-allocate the DOM nodes
+for (let i = 0; i < maxLines; i++) {
+  const lineDiv = document.createElement('div');
+  lineDiv.className = 'line';
+  lineDiv.style.position = 'absolute';
+  lineDiv.style.height = `${LINE_HEIGHT}px`;
+  lineDiv.style.width = '100%';
+  
+  // Each line gets two spans to handle the "split" around the circle
+  const spanLeft = document.createElement('span');
+  const spanRight = document.createElement('span');
+  
+  spanLeft.style.position = 'absolute';
+  spanRight.style.position = 'absolute';
+  
+  lineDiv.appendChild(spanLeft);
+  lineDiv.appendChild(spanRight);
+  container.appendChild(lineDiv);
+  
+  lineElements.push({ div: lineDiv, left: spanLeft, right: spanRight });
+}
 
 function render(time) {
   const app = document.getElementById('app');
@@ -32,70 +59,66 @@ function render(time) {
   ball.style.left = `${CENTER_X / WIDTH * 100}%`;
   ball.style.top = `${CENTER_Y / HEIGHT * 100}%`;
 
-  // Clear the container for the new frame
-  container.innerHTML = '';
 
   let cursor = { segmentIndex: 0, graphemeIndex: 0 };
-  let y = 20;
+  let currentY = 20;
 
-  while (y < HEIGHT - 20) {
-    const relativeY = (y + LINE_HEIGHT / 2) - CENTER_Y;
-    const lineDiv = document.createElement('div');
-    lineDiv.className = 'line';
-    lineDiv.style.top = `${y}px`;
+  for (let i = 0; i < lineElements.length; i++) {
+      const { div, left, right } = lineElements[i];
+    // Stop if we've run out of text or space
+    if (currentY > HEIGHT - 20 || !cursor) {
+      div.style.display = 'none';
+      continue;
+    }
+    div.style.display = 'block';
+    div.style.transform = `translateY(${currentY}px)`;
+    
+    const relativeY = (currentY + LINE_HEIGHT / 2) - CENTER_Y;
 
-    // Determine if this line hits the circle
     if (Math.abs(relativeY) < CIRCLE_RADIUS) {
+      // Intersection Logic
       const halfChord = Math.sqrt(CIRCLE_RADIUS ** 2 - relativeY ** 2);
       const circleLeft = CENTER_X - halfChord;
       const circleRight = CENTER_X + halfChord;
 
-      // Part 1: Text before the circle
-      const leftStart = 20 + (xOffset % 50); // Small movement
+      // Left Segment
+      const leftStart = 20 + xOffset;
       const leftWidth = circleLeft - leftStart - 10;
-      
-      if (leftWidth > 20) {
-        const line = layoutNextLine(prepared, cursor, leftWidth);
-        if (line) {
-          const span = document.createElement('span');
-          span.textContent = line.text;
-          span.style.position = 'absolute';
-          span.style.left = `${leftStart}px`;
-          lineDiv.appendChild(span);
-          cursor = line.end;
-        }
+      const leftLine = leftWidth > 20 ? layoutNextLine(prepared, cursor, leftWidth) : null;
+
+      if (leftLine) {
+        left.textContent = leftLine.text;
+        left.style.transform = `translateX(${leftStart}px)`;
+        cursor = leftLine.end;
+      } else {
+        left.textContent = '';
       }
 
-      // Part 2: Text after the circle
+      // Right Segment
       const rightWidth = (WIDTH - 20) - (circleRight + 10);
-      if (rightWidth > 20) {
-        const line = layoutNextLine(prepared, cursor, rightWidth);
-        if (line) {
-          const span = document.createElement('span');
-          span.textContent = line.text;
-          span.style.position = 'absolute';
-          span.style.left = `${circleRight + 10}px`;
-          lineDiv.appendChild(span);
-          cursor = line.end;
-        }
+      const rightLine = rightWidth > 20 ? layoutNextLine(prepared, cursor, rightWidth) : null;
+
+      if (rightLine) {
+        right.textContent = rightLine.text;
+        right.style.transform = `translateX(${circleRight + 10}px)`;
+        cursor = rightLine.end;
+      } else {
+        right.textContent = '';
       }
     } else {
-      // Normal full-width line
+      // Full Width Line
       const fullWidth = WIDTH - 40;
       const line = layoutNextLine(prepared, cursor, fullWidth);
+      
       if (line) {
-        const span = document.createElement('span');
-        span.textContent = line.text;
-        span.style.position = 'absolute';
-        span.style.left = `${20 + (xOffset % 50)}px`;
-        lineDiv.appendChild(span);
+        left.textContent = line.text;
+        left.style.transform = `translateX(${20 + xOffset}px)`;
+        right.textContent = ''; // Hide the second span
         cursor = line.end;
       }
     }
 
-    container.appendChild(lineDiv);
-    y += LINE_HEIGHT;
-    if (!cursor) break;
+    currentY += LINE_HEIGHT;
   }
 
   if(isAnimating)
